@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Plastic Dataset Labeling Tool</title>
+    <link rel="stylesheet" href="/static/css/labelme.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #7b7ce7 0%, #a18cd1 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 4px 32px rgba(0,0,0,0.08);
+            padding: 40px 32px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-container h1 {
+            margin-bottom: 8px;
+        }
+        .login-container p {
+            color: #888;
+            margin-bottom: 24px;
+        }
+        .google-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 10px 0;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+        .google-btn img {
+            width: 20px;
+            margin-right: 8px;
+        }
+        .divider {
+            margin: 16px 0;
+            color: #aaa;
+            font-size: 14px;
+        }
+        .form-group {
+            text-align: left;
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+        .login-btn {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(90deg, #7b7ce7 0%, #a18cd1 100%);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .register-link {
+            margin-top: 18px;
+            font-size: 15px;
+        }
+        .register-link a {
+            color: #7b7ce7;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>Login</h1>
+        <p>Plastic Dataset Collection Tool</p>
+        <button class="google-btn">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
+            Continue with Google
+        </button>
+        <div class="divider">OR</div>
+        <form method="POST" action="/login">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" placeholder="Enter your email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter your password" required>
+            </div>
+            <button class="login-btn" type="submit">Login</button>
+        </form>
+        <div class="register-link">
+            Don't have an account? <a href="/register">Register here</a>
+        </div>
+    </div>
+</body>
+</html>

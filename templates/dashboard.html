@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labelify Dashboard</title>
+    <link rel="stylesheet" href="/static/css/labelme.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            display: flex;
+            gap: 2rem;
+        }
+        .card {
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 2rem 2.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 300px;
+        }
+        .card h2 {
+            color: #7b2ff2;
+            margin-bottom: 1rem;
+        }
+        .upload-area, .capture-area {
+            border: 2px dashed #7b2ff2;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            text-align: center;
+            color: #7b2ff2;
+            cursor: pointer;
+        }
+        .btn {
+            background: linear-gradient(90deg, #7b2ff2 0%, #f357a8 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 0.7rem 2rem;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+        .btn:active {
+            opacity: 0.9;
+        }
+        #video {
+            display: none;
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+        #canvas {
+            display: none;
+            width: 100%;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h2>📷 Instant Capture</h2>
+            <div class="capture-area" id="capture-area">
+                Click to capture image
+            </div>
+            <video id="video" autoplay></video>
+            <canvas id="canvas"></canvas>
+            <button class="btn" id="start-camera">Start Camera</button>
+            <button class="btn" id="capture-btn" style="display:none;">Capture</button>
+        </div>
+        <div class="card">
+            <h2>🗂️ Upload Image</h2>
+            <form id="upload-form" enctype="multipart/form-data">
+                <div class="upload-area" id="upload-area">
+                    Click to upload image or drag & drop
+                </div>
+                <input type="file" id="file-input" name="images" accept="image/*" multiple style="display:none;">
+                <button class="btn" type="submit">Upload Image</button>
+            </form>
+        </div>
+    </div>
+    <script>
+        // Camera logic
+        const startCameraBtn = document.getElementById('start-camera');
+        const captureBtn = document.getElementById('capture-btn');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureArea = document.getElementById('capture-area');
+        let stream;
+
+        startCameraBtn.onclick = async function() {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            video.style.display = 'block';
+            captureBtn.style.display = 'inline-block';
+            startCameraBtn.style.display = 'none';
+        };
+        captureBtn.onclick = function() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            canvas.style.display = 'block';
+            stream.getTracks().forEach(track => track.stop());
+            video.style.display = 'none';
+            captureBtn.style.display = 'none';
+            startCameraBtn.style.display = 'inline-block';
+        };
+
+        // Upload logic
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        uploadArea.onclick = () => fileInput.click();
+        uploadArea.ondragover = e => { e.preventDefault(); uploadArea.style.background = '#f3e6ff'; };
+        uploadArea.ondragleave = e => { e.preventDefault(); uploadArea.style.background = ''; };
+        uploadArea.ondrop = e => {
+            e.preventDefault();
+            fileInput.files = e.dataTransfer.files;
+            uploadArea.style.background = '';
+        };
+        document.getElementById('upload-form').onsubmit = async function(e) {
+            e.preventDefault();
+            const formData = new FormData();
+            if (fileInput.files.length === 0) {
+                alert('Please select one or more images.');
+                return;
+            }
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('images', fileInput.files[i]);
+            }
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success && data.filenames && data.filenames.length > 0) {
+                    // Redirect to labelme with all uploaded image filenames for navigation
+                    const imagesParam = data.filenames.map(encodeURIComponent).join(',');
+                    window.location.href = `/labelme?images=${imagesParam}&image=${encodeURIComponent(data.filenames[0])}`;
+                } else {
+                    alert('Upload failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            }
+        };
+    </script>
+</body>
+</html>

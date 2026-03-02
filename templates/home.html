@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labelify</title>
+    <link rel="stylesheet" href="/static/css/labelme.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #7b7ce7 0%, #a18cd1 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .main-container {
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .logo-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 32px;
+        }
+        .logo-title img {
+            width: 40px;
+        }
+        .logo-title h1 {
+            font-size: 2.5rem;
+            color: #fff;
+            font-weight: 700;
+            margin: 0;
+        }
+        .options-row {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+        }
+        .option-card {
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 32px rgba(0,0,0,0.08);
+            padding: 32px 28px 24px 28px;
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .option-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #7b7ce7;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .option-title img {
+            width: 26px;
+        }
+        .option-box {
+            border: 2px dashed #7b7ce7;
+            border-radius: 12px;
+            width: 100%;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 18px;
+            background: #f8f8ff;
+            cursor: pointer;
+            transition: border 0.2s;
+        }
+        .option-box:hover {
+            border: 2px solid #7b7ce7;
+        }
+        .option-box img {
+            width: 38px;
+            margin-bottom: 8px;
+        }
+        .option-box span {
+            color: #888;
+            font-size: 1rem;
+        }
+        .option-btn {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(90deg, #7b7ce7 0%, #a18cd1 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="logo-title">
+            <img src="https://img.icons8.com/ios-filled/50/ffffff/camera--v1.png" alt="camera icon">
+            <h1>Labelify</h1>
+        </div>
+        <div class="options-row">
+            <div class="option-card">
+                <div class="option-title">
+                    <img src="https://img.icons8.com/ios-filled/50/7b7ce7/camera--v1.png" alt="camera icon">
+                    Instant Capture
+                </div>
+                <div class="option-box" onclick="alert('Camera feature coming soon!')">
+                    <img src="https://img.icons8.com/ios-filled/50/888888/camera--v1.png" alt="capture">
+                    <span>Click to capture image</span>
+                </div>
+                <button class="option-btn" onclick="alert('Camera feature coming soon!')">Start Camera</button>
+            </div>
+            <div class="option-card">
+                <div class="option-title">
+                    <img src="https://img.icons8.com/ios-filled/50/7b7ce7/folder-invoices--v1.png" alt="folder icon">
+                    Upload Image
+                </div>
+                <form method="POST" action="/upload" enctype="multipart/form-data">
+                    <label for="upload-box" style="width:100%">
+                        <div class="option-box" style="cursor:pointer;" id="upload-box">
+                            <img src="https://img.icons8.com/ios-filled/50/888888/folder-invoices--v1.png" alt="upload">
+                            <span>Click to upload image or drag & drop</span>
+                        </div>
+                        <input type="file" name="image" id="upload-box" style="display:none;" onchange="this.form.submit()">
+                    </label>
+                    <button class="option-btn" type="submit">Upload Image</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

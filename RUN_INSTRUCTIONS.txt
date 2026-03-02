@@ -1,0 +1,35 @@
+# How to set up and run the project
+
+1. Create a virtual environment (Python 3.11 recommended):
+
+   Windows:
+   ```
+   python -m venv .venv
+   .venv\Scripts\activate
+   ```
+
+2. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+3. Run the application:
+   ```
+   python app.py
+   ```
+
+4. Open your browser and go to:
+   http://127.0.0.1:5000/
+
+# Troubleshooting
+- If you see errors about missing packages, make sure your virtual environment is activated.
+- If you want to run tests, use:
+   ```
+   python test_simple.py
+   python test_compatible.py
+   python test_torch.py
+   ```
+
+# Notes
+- All required packages are listed in requirements.txt with exact versions.
+- For any issues, check the terminal output for error messages.

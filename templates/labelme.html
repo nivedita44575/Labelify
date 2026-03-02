@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LabelMe Web - Annotation Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/labelme.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
+
+</head>
+
+<body>
+    <div class="labelme-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>LabelMe Web</h1>
+            <div class="file-info">
+                <span id="filename">image.jpg</span>
+                <span id="image-size">0x0</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Left Sidebar - Tools -->
+            <div class="sidebar left">
+                <h3>Tools</h3>
+                <div class="tool-buttons">
+                    <button class="tool-btn active" data-tool="rectangle" onclick="setTool('rectangle')">
+                        ▭ Rectangle
+                    </button>
+                    <button class="tool-btn" data-tool="polygon" onclick="setTool('polygon')">
+                        ◇ Polygon
+                    </button>
+                    <button class="tool-btn" data-tool="circle" onclick="setTool('circle')">
+                        ◯ Circle
+                    </button>
+                    <button class="tool-btn" data-tool="freehand" onclick="setTool('freehand')">
+                        ✏️ Freehand
+                    </button>
+                    <button class="tool-btn" data-tool="ai-polygon" onclick="setTool('ai-polygon')">
+                        🤖 AI Polygon Mode
+                    </button>
+                </div>
+
+                <h3>Actions</h3>
+                <div class="action-buttons">
+                    <button onclick="undo()">↶ Undo</button>
+                    <button onclick="redo()">↷ Redo</button>
+                    <button onclick="clearAll()">🗑️ Clear</button>
+                    <button onclick="saveAnnotations()" id="save-label-btn">💾 Save</button>
+                    <span id="save-msg" style="margin-left:10px;color:#4CAF50;"></span>
+                </div>
+                <div class="image-nav-controls"
+                    style="display:flex; justify-content:center; align-items:center; gap:30px; margin:20px 0;">
+                    <button id="prevImageBtn"
+                        style="display:flex; flex-direction:column; align-items:center; border:none; background:none; cursor:pointer;">
+                        <svg width="40" height="40" viewBox="0 0 40 40">
+                            <polygon points="25,10 15,20 25,30" fill="#888" />
+                        </svg>
+                        <span style="font-size:14px; color:#888;">Prev Image</span>
+                    </button>
+                    <button id="nextImageBtn"
+                        style="display:flex; flex-direction:column; align-items:center; border:none; background:none; cursor:pointer;">
+                        <svg width="40" height="40" viewBox="0 0 40 40">
+                            <polygon points="15,10 25,20 15,30" fill="#888" />
+                        </svg>
+                        <span style="font-size:14px; color:#888;">Next Image</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Canvas Area -->
+            <div class="canvas-area">
+                <img id="uploadedImage" style="display:none;">
+                <canvas id="annotation-canvas"></canvas>
+                <script>
+                    // Hard override: Only allow AI polygon click handler in AI mode
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const canvas = document.getElementById('annotation-canvas');
+                        let savedHandlers = [];
+                        function removeAllCanvasHandlers() {
+                            // Remove all event listeners by cloning
+                            if (!canvas) return;
+                            const newCanvas = canvas.cloneNode(true);
+                            canvas.parentNode.replaceChild(newCanvas, canvas);
+                            return newCanvas;
+                        }
+                        function enableAICanvasHandler() {
+                            let aiHandler = function (e) {
+                                if (window.AIHandler && window.AIHandler.aiMode) {
+                                    e.stopImmediatePropagation();
+                                    window.AIHandler.handleAIClick(e);
+                                }
+                            };
+                            const newCanvas = removeAllCanvasHandlers();
+                            if (newCanvas) {
+                                newCanvas.addEventListener('click', aiHandler, true);
+                                // Save reference for later
+                                window._aiCanvas = newCanvas;
+                            }
+                        }
+                        function restoreCanvasHandlers() {
+                            // Reload the page to restore all handlers (safest for now)
+                            location.reload();
+                        }
+                        // Patch AIHandler.toggleAIMode to enable/disable handlers
+                        const origToggle = window.AIHandler.toggleAIMode.bind(window.AIHandler);
+                        window.AIHandler.toggleAIMode = function () {
+                            origToggle();
+                            if (window.AIHandler.aiMode) {
+                                enableAICanvasHandler();
+                            } else {
+                                restoreCanvasHandlers();
+                            }
+                        };
+                    });
+                </script>
+                <script>
+                    // Force AI Polygon Mode click handler to take precedence
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const canvas = document.getElementById('annotation-canvas');
+                        if (canvas) {
+                            canvas.addEventListener('click', function (e) {
+                                if (window.AIHandler && window.AIHandler.aiMode) {
+                                    e.stopImmediatePropagation(); // Prevent other handlers
+                                    window.AIHandler.handleAIClick(e);
+                                }
+                            }, true); // Use capture to ensure this runs first
+                        }
+                    });
+                </script>
+                <div class="canvas-controls">
+                    <button onclick="zoomIn()">+ Zoom In</button>
+                    <button onclick="zoomOut()">- Zoom Out</button>
+                    <button onclick="fitToScreen()">Fit to Screen</button>
+                </div>
+            </div>
+
+            <!-- Right Sidebar - Annotations -->
+            <div class="sidebar right">
+                <h3>Annotations</h3>
+                <div id="annotations-list">
+                    <div class="empty-state">No annotations yet</div>
+                </div>
+
+                <!-- <div class="save-section">
+                    <h3>Export</h3>
+                    <button onclick="saveAnnotations()" class="save-btn">💾 Save JSON</button>
+                    <button onclick="exportImage()" class="export-btn">🖼️ Export Image</button>
+                    <button onclick="copyJSON()" class="copy-btn">📋 Copy JSON</button>
+                </div> -->
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span id="status">Ready</span>
+            <span id="tool-info">Tool: Polygon</span>
+            <span id="annotation-count">Annotations: 0</span>
+        </div>
+    </div>
+
+    <!-- Hidden elements -->
+    <input type="hidden" id="image-url" value="{{ filename if filename else '' }}">
+
+    <script src="{{ url_for('static', filename='js/labelme-core.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- Add AI Controls -->
+    <div class="ai-controls" style="margin: 15px 0; padding: 10px; background: #f5f5f5; border-radius: 5px;">
+        <h4 style="margin: 0 0 10px 0;">🤖 AI Tools</h4>
+
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button onclick="AIHandler.autoDetect()" data-ai-button
+                style="padding: 8px 15px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                🔍 AI Auto-Detect
+            </button>
+
+            <button onclick="AIHandler.toggleAIMode()" data-ai-mode data-ai-button
+                style="padding: 8px 15px; background: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                🤖 AI Mode
+            </button>
+
+            <select data-ai-confidence style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+                <option value="0.3">Low Confidence</option>
+                <option value="0.5" selected>Medium Confidence</option>
+                <option value="0.7">High Confidence</option>
+            </select>
+
+            <span id="ai-status" style="margin-left: auto; font-size: 12px; color: #666;">
+                AI: Checking...
+            </span>
+        </div>
+    </div>
+
+    <!-- Add this script at the end of your HTML -->
+    <script src="{{ url_for('static', filename='js/ai.js') }}"></script>
+
+    <script>
+
+        let labelMe = null;
+        let currentImage = document.getElementById('image-url').value;
+        // List of images for navigation
+        let imageList = [];
+        let currentIndex = 0;
+
+        // Try to get image list from query string
+        function getImageListFromQuery() {
+            const params = new URLSearchParams(window.location.search);
+            const imagesParam = params.get('images');
+            if (imagesParam) {
+                return imagesParam.split(',');
+            }
+            // fallback: just current image
+            return [currentImage];
+        }
+
+        function updateImageNavButtons() {
+            const prevBtn = document.getElementById('prevImageBtn');
+            const nextBtn = document.getElementById('nextImageBtn');
+            if (imageList.length <= 1) {
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+            } else {
+                prevBtn.style.display = '';
+                nextBtn.style.display = '';
+                prevBtn.disabled = (currentIndex <= 0);
+                nextBtn.disabled = (currentIndex >= imageList.length - 1);
+            }
+        }
+
+        function loadImage(index) {
+            if (index < 0 || index >= imageList.length) return;
+            currentIndex = index;
+            currentImage = imageList[currentIndex];
+            document.getElementById('filename').textContent = currentImage;
+            document.getElementById('image-url').value = currentImage;
+            const imgElement = document.getElementById('uploadedImage');
+            imgElement.src = '/uploads/' + currentImage.split('/').pop();
+            imgElement.onload = function () {
+                labelMe = new LabelMeCanvas('annotation-canvas', imgElement);
+                // Load annotation JSON for this image
+                fetch('/labels/' + currentImage.replace(/\.[^/.]+$/, '.json'))
+                    .then(res => res.ok ? res.json() : null)
+                    .then(json => {
+                        if (json && json.shapes) {
+                            labelMe.loadShapes(json.shapes);
+                        }
+                        updateAnnotationsList();
+                    })
+                    .catch(() => {
+                        updateAnnotationsList();
+                    });
+            };
+            if (imgElement.complete && imgElement.naturalWidth > 0) {
+                imgElement.onload();
+            }
+            updateImageNavButtons();
+        }
+
+        window.onload = function () {
+            imageList = getImageListFromQuery();
+            // Find current image index
+            currentIndex = imageList.indexOf(currentImage);
+            if (currentIndex === -1) currentIndex = 0;
+            loadImage(currentIndex);
+            document.getElementById('prevImageBtn').onclick = function () {
+                if (currentIndex > 0) {
+                    loadImage(currentIndex - 1);
+                }
+            };
+            document.getElementById('nextImageBtn').onclick = function () {
+                if (currentIndex < imageList.length - 1) {
+                    loadImage(currentIndex + 1);
+                }
+            };
+        };
+
+        function setTool(tool) {
+            if (labelMe) {
+                labelMe.setTool(tool);
+
+                // Update active button
+                document.querySelectorAll('.tool-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
+
+                updateStatus(`Tool set to: ${tool}`);
+                updateToolInfo(tool);
+            }
+        }
+
+        function setLabel(label) {
+            if (labelMe) {
+                labelMe.setLabel(label);
+
+                // Update active label
+                document.querySelectorAll('.label-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.querySelector(`[data-label="${label}"]`).classList.add('active');
+            }
+        }
+
+        function addLabel() {
+            const input = document.getElementById('new-label');
+            const label = input.value.trim();
+
+            if (label && !document.querySelector(`[data-label="${label}"]`)) {
+                const container = document.getElementById('labels-container');
+                const div = document.createElement('div');
+                div.className = 'label-item';
+                div.dataset.label = label;
+                div.textContent = label;
+                div.onclick = function () { setLabel(label); };
+                container.appendChild(div);
+                input.value = '';
+            }
+        }
+
+        function undo() {
+            if (labelMe) {
+                labelMe.undo();
+                updateAnnotationsList();
+                updateStatus('Undid last action');
+            }
+        }
+
+        function redo() {
+            if (labelMe) {
+                labelMe.redo();
+                updateAnnotationsList();
+                updateStatus('Redid last action');
+            }
+        }
+
+        function clearAll() {
+            if (labelMe) {
+                labelMe.clear();
+                updateAnnotationsList();
+                updateStatus('Cleared all annotations');
+            }
+        }
+
+        function runAIOnImage() {
+            if (labelMe) {
+                updateStatus('Running AI detection...');
+                labelMe.runAIOnImage().then(() => {
+                    updateAnnotationsList();
+                    updateStatus('AI detection complete');
+                });
+            }
+        }
+
+        function updateAnnotationsList() {
+            const container = document.getElementById('annotations-list');
+            if (!labelMe || !labelMe.shapes || labelMe.shapes.length === 0) {
+                container.innerHTML = '<div class="empty-state">No annotations yet</div>';
+                return;
+            }
+            let html = '';
+            labelMe.shapes.forEach((shape, idx) => {
+                const label = shape.label || 'Unlabeled';
+                let typeDisplay = shape.type;
+                if (shape.type === 'polygon' && shape.aiGenerated) {
+                    typeDisplay = 'AI polygon';
+                }
+                html += `<div class="annotation-item"><b>${label}</b> (${typeDisplay})</div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        async function saveAnnotations() {
+            if (!labelMe) return;
+            const annotations = labelMe.shapes || [];
+            const imagePath = currentImage.split('/').pop() || 'image.jpg';
+            const labelMeJSON = labelMe.toLabelMeJSON(imagePath);
+            try {
+                const response = await fetch('/save_label', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        all_annotations: [{
+                            image: imagePath,
+                            shapes: annotations
+                        }]
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showCenterPopup('✅ Saved to labels!');
+                } else {
+                    showCenterPopup('❌ Save failed!');
+                }
+            } catch (error) {
+                showCenterPopup('❌ Save failed!');
+            }
+        }
+
+        // Show a unique center popup message
+        function showCenterPopup(msg) {
+            let popup = document.getElementById('center-popup');
+            if (!popup) {
+                popup = document.createElement('div');
+                popup.id = 'center-popup';
+                popup.style.position = 'fixed';
+                popup.style.top = '50%';
+                popup.style.left = '50%';
+                popup.style.transform = 'translate(-50%, -50%)';
+                popup.style.background = 'rgba(40,40,40,0.95)';
+                popup.style.color = '#fff';
+                popup.style.padding = '28px 48px';
+                popup.style.borderRadius = '16px';
+                popup.style.fontSize = '1.5rem';
+                popup.style.zIndex = '9999';
+                popup.style.boxShadow = '0 8px 32px rgba(0,0,0,0.25)';
+                document.body.appendChild(popup);
+            }
+            popup.textContent = msg;
+            popup.style.display = 'block';
+            setTimeout(() => {
+                popup.style.display = 'none';
+            }, 1800);
+        }
+
+        function exportImage() {
+            if (!labelMe) return;
+
+            const canvas = document.getElementById('annotation-canvas');
+            const link = document.createElement('a');
+            link.download = 'labeled_image.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            updateStatus('Image exported');
+        }
+
+        function copyJSON() {
+            if (!labelMe) return;
+
+            const json = labelMe.toLabelMeJSON('image.jpg');
+            const jsonString = JSON.stringify(json, null, 2);
+
+            navigator.clipboard.writeText(jsonString).then(() => {
+                updateStatus('JSON copied to clipboard');
+                alert('JSON copied to clipboard!');
+            }).catch(err => {
+                updateStatus('Failed to copy');
+                alert('Failed to copy: ' + err);
+            });
+        }
+
+        function zoomIn() {
+            if (labelMe) {
+                labelMe.zoomIn();
+                updateStatus('Zoomed in');
+            }
+        }
+
+        function zoomOut() {
+            if (labelMe) {
+                labelMe.zoomOut();
+                updateStatus('Zoomed out');
+            }
+        }
+
+        function fitToScreen() {
+            if (labelMe) {
+                labelMe.fitToScreen();
+                updateStatus('Fitted to screen');
+            }
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        function updateToolInfo(tool) {
+            document.getElementById('tool-info').textContent = `Tool: ${tool}`;
+        }
+
+        // Set up label selection
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.label-item').forEach(item => {
+                item.onclick = function () {
+                    setLabel(this.dataset.label);
+                };
+            });
+        });
+    </script>
+    <script>
+        // Initialize AI Handler when page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            // Use the global AIHandler instance from ai.js
+            if (window.AIHandler && typeof window.AIHandler.checkStatus === 'function') {
+                window.AIHandler.checkStatus().then(enabled => {
+                    const statusEl = document.getElementById('ai-status');
+                    if (statusEl) {
+                        statusEl.textContent = enabled ? '✅ AI Ready' : '⚠️ AI Unavailable';
+                        statusEl.style.color = enabled ? '#4CAF50' : '#FF9800';
+                    }
+                });
+                setInterval(() => window.AIHandler.checkStatus(), 30000);
+            }
+        });
+
+        // Helper function to add annotations (you need to implement this based on your existing code)
+        window.addAnnotation = function (label, points, shape_type, extraData = {}) {
+            // This should call your existing annotation adding function
+            console.log('Add annotation:', { label, points, shape_type, extraData });
+
+            // If you have an existing annotation system, call it here
+            // Example: yourAnnotationSystem.add(label, points, shape_type);
+
+            // For now, we'll just log it
+            alert(`Add ${label} at ${JSON.stringify(points)}`);
+        };
+
+
+        async function saveAnnotations() {
+            if (!labelMe) return;
+
+            const annotations = labelMe.shapes || [];
+            const imagePath = currentImage.split('/').pop() || 'image.jpg';
+
+            const imgElement = document.getElementById('uploadedImage');
+
+            try {
+                const response = await fetch('/save_label', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        all_annotations: [{
+                            image: imagePath,
+                            shapes: annotations,
+                            imageWidth: imgElement.naturalWidth,
+                            imageHeight: imgElement.naturalHeight
+                        }]
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showCenterPopup('✅ Saved to labels!');
+                } else {
+                    showCenterPopup('❌ Save failed: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                showCenterPopup('❌ Save failed!');
+            }
+        }
+
+    </script>
+</body>
+
+</html>
